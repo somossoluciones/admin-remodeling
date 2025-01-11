@@ -1,0 +1,373 @@
+import React from 'react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import ProjectPDF from '../components/QuotationPDF';
+import { supabase } from '../lib/supabase';
+import { useBases, useServices, useProperties } from '../hooks/useSupabase';
+import type { QuotationItem } from '../types';
+
+const Projects = () => {
+  const { bases, loading: basesLoading } = useBases();
+  const { services, loading: servicesLoading } = useServices();
+  const { properties, loading: propertiesLoading } = useProperties();
+  const [property, setProperty] = React.useState('');
+  const [unitNumber, setUnitNumber] = React.useState('');
+  const [unitType, setUnitType] = React.useState('');
+  const [baseId, setBaseId] = React.useState('');
+  const [selectedServices, setSelectedServices] = React.useState<QuotationItem[]>([]);
+  const [changeOrders, setChangeOrders] = React.useState(0);
+  const [notes, setNotes] = React.useState('');
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  const selectedProperty = properties?.find(p => p.id === property);
+  const selectedBase = bases?.find(b => b.id === baseId);
+  const selectedUnitType = selectedProperty?.units?.find(u => u.code === unitType);
+
+  // Calculate change orders total
+  const changeOrderTotal = changeOrders * 10; // $10 per CO
+
+  const addService = () => {
+    const newService: QuotationItem = {
+      id: Date.now().toString(),
+      type: 'service',
+      name: '',
+      price: 0,
+    };
+    setSelectedServices([...selectedServices, newService]);
+  };
+
+  const removeService = (id: string) => {
+    setSelectedServices(selectedServices.filter(s => s.id !== id));
+  };
+
+  const updateService = (id: string, serviceId: string) => {
+    const service = services?.find(s => s.id === serviceId);
+    if (!service) return;
+
+    setSelectedServices(selectedServices.map(s => 
+      s.id === id 
+        ? { 
+            ...s, 
+            name: service.name, 
+            price: service.price,
+            multiplier: service.multiplier 
+          }
+        : s
+    ));
+  };
+
+  const calculateTotal = () => {
+    const basePrice = selectedBase?.price || 0;
+    const servicesTotal = selectedServices.reduce((sum, service) => {
+      return sum + (service.price * (service.multiplier || 1));
+    }, 0);
+    return basePrice + servicesTotal + changeOrderTotal;
+  };
+
+  const handleSave = async () => {
+    if (!property || !unitNumber || !baseId) {
+      alert('Por favor complete los campos requeridos');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Get the unit ID
+      const selectedUnitType = selectedProperty?.units?.find(u => u.code === unitType);
+
+      if (!selectedUnitType) {
+        throw new Error('Unidad no encontrada');
+      }
+
+      // Create the project
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .insert([{
+          property_id: property,
+          unit_id: selectedUnitType?.id || null,
+          unit_number: unitNumber,
+          base_id: baseId,
+          change_orders: changeOrders,
+          change_orders_total: changeOrderTotal,
+          total: calculateTotal(),
+          notes,
+          status: 'draft',
+          payment_status: 'pending',
+        }])
+        .select()
+        .single();
+
+      if (projectError) throw projectError;
+
+      // Create project items
+      const items = [
+        ({
+          project_id: project.id,
+          type: 'base',
+          name: selectedBase!.name,
+          price: selectedBase!.price,
+          quantity: 1,
+          multiplier: 1,
+        }),
+        ...selectedServices.map(service => ({
+          project_id: project.id,
+          type: 'service',
+          service_id: services?.find(s => s.name === service.name)?.id,
+          name: service.name,
+          price: service.price,
+          quantity: service.quantity || 1,
+          multiplier: service.multiplier || 1
+        }))
+      ];
+      
+      const { error: itemsError } = await supabase
+        .from('project_items')
+        .insert(items);
+
+      if (itemsError) throw itemsError;
+
+      // Success - redirect to dashboard
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Error saving project:', err);
+      alert('Error al guardar el proyecto. Por favor intente nuevamente.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const quotationData = {
+    id: Date.now().toString(),
+    propertyName: selectedProperty?.name || '',
+    unitNumber,
+    unitType: selectedUnitType?.code || '',
+    squareFeet: selectedUnitType?.squareFeet || 0,
+    bedrooms: selectedUnitType?.bedrooms || 0,
+    bathrooms: selectedUnitType?.bathrooms || 0,
+    items: [
+      ...(selectedBase ? [{
+        id: selectedBase.id,
+        type: 'base' as const,
+        name: selectedBase.name,
+        price: selectedBase.price,
+      }] : []),
+      ...selectedServices,
+    ],
+    changeOrders,
+    changeOrderTotal,
+    total: calculateTotal(),
+    date: new Date().toLocaleDateString(),
+    status: 'draft',
+  };
+  
+  if (basesLoading || servicesLoading || propertiesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-600">Cargando datos...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center mb-8">
+        <Link to="/" className="flex items-center text-gray-600 hover:text-gray-800 mr-4">
+          <ArrowLeft className="w-5 h-5 mr-2" />
+          Volver
+        </Link>
+        <h1 className="text-2xl font-bold text-gray-800">Nuevo Proyecto</h1>
+      </div>
+      
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Propiedad
+            </label>
+            <select 
+              className="w-full border border-gray-300 rounded-lg p-2"
+              value={property}
+              onChange={(e) => setProperty(e.target.value)}
+            >
+              <option value="">Seleccionar propiedad...</option>
+              {properties?.map(prop => (
+                <option key={prop.id} value={prop.id}>
+                  {prop.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tipo de Unidad
+            </label>
+            <select
+              className="w-full border border-gray-300 rounded-lg p-2"
+              value={unitType}
+              onChange={(e) => setUnitType(e.target.value)}
+            >
+              <option value="">Seleccionar tipo...</option>
+              {selectedProperty?.units?.map(unit => (
+                <option key={unit.id} value={unit.code}>
+                  {unit.code} - {unit.bedrooms}BR/{unit.bathrooms}BA - {unit.squareFeet}sqft
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Change Orders (COs)
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={changeOrders}
+              onChange={(e) => setChangeOrders(parseInt(e.target.value) || 0)}
+              className="w-full border border-gray-300 rounded-lg p-2"
+            />
+            {changeOrders > 0 && (
+              <p className="text-sm text-gray-500 mt-1">
+                Total COs: ${changeOrderTotal}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Unidad
+            </label>
+            <input
+              value={unitNumber}
+              onChange={(e) => setUnitNumber(e.target.value)}
+              type="text"
+              placeholder="Número de unidad"
+              className="w-full border border-gray-300 rounded-lg p-2"
+            />
+          </div>
+        </div>
+        
+        {selectedUnitType && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-medium mb-2">Detalles de la Unidad</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Cuartos:</span> {selectedUnitType.bedrooms}
+              </div>
+              <div>
+                <span className="text-gray-600">Baños:</span> {selectedUnitType.bathrooms}
+              </div>
+              <div>
+                <span className="text-gray-600">Pies Cuadrados:</span> {selectedUnitType.squareFeet}
+              </div>
+              <div>
+                <span className="text-gray-600">Balcón:</span> {selectedUnitType.hasBalcony ? 'Sí' : 'No'}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-4">Base</h2>
+          <select 
+            className="w-full border border-gray-300 rounded-lg p-2"
+            value={baseId}
+            onChange={(e) => setBaseId(e.target.value)}
+          >
+            <option value="">Seleccionar base...</option>
+            {bases?.map(base => (
+              <option key={base.id} value={base.id}>
+                {base.name} (${base.price.toLocaleString('en-US')})
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-4">Servicios Adicionales</h2>
+          {selectedServices.map((service, index) => (
+            <div key={service.id} className="flex items-center gap-4 mb-4">
+              <select
+                className="flex-1 border border-gray-300 rounded-lg p-2"
+                value={service.name ? services?.find(s => s.name === service.name)?.id : ''}
+                onChange={(e) => updateService(service.id, e.target.value)}
+              >
+                <option value="">Seleccionar servicio...</option>
+                {services?.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} (${s.price.toLocaleString('en-US')}{s.multiplier ? ` X${s.multiplier}` : ''})
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => removeService(service.id)}
+                className="text-red-500 hover:text-red-700"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </div>
+          ))}
+          <button 
+            onClick={addService}
+            className="flex items-center text-blue-500 hover:text-blue-700"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Agregar servicio
+          </button>
+        </div>
+        
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Notas Adicionales
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg p-2 h-24"
+            placeholder="Agregar notas o comentarios adicionales..."
+          />
+        </div>
+        
+        <div className="mb-8 text-right">
+          <p className="text-gray-600 mb-2">
+            Base: ${selectedBase?.price.toLocaleString('en-US') || 0}
+          </p>
+          {changeOrders > 0 && (
+            <p className="text-gray-600 mb-2">
+              Change Orders: ${changeOrderTotal.toLocaleString('en-US')}
+            </p>
+          )}
+          {selectedServices.length > 0 && (
+            <p className="text-gray-600 mb-2">
+              Servicios: ${selectedServices.reduce((sum, service) => 
+                sum + (service.price * (service.multiplier || 1)), 0).toLocaleString('en-US')}
+            </p>
+          )}
+          <p className="text-xl font-semibold">
+            Total: ${calculateTotal().toLocaleString('en-US')}
+          </p>
+        </div>
+        
+        <div className="flex justify-end gap-4 mt-8">
+          <button
+            onClick={handleSave}
+            disabled={isSaving || !property || !unitNumber || !baseId}
+            className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+          >
+            {isSaving ? 'Guardando...' : 'Guardar Borrador'}
+          </button>
+          <PDFDownloadLink
+            document={<ProjectPDF project={quotationData} />}
+            fileName={`proyecto-${unitNumber}.pdf`}
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+          >
+            {({ loading }) =>
+              loading ? 'Generando PDF...' : 'Descargar PDF'
+            }
+          </PDFDownloadLink>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Projects;
