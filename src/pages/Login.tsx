@@ -32,19 +32,12 @@ const Login = () => {
         throw new Error('No se pudo obtener el correo electrónico');
       }
 
-      const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
-      console.log('Login attempt:', {
-        email: userEmail,
-        allowedEmails: allowedEmails,
-        isAllowed: allowedEmails.includes(userEmail.trim())
-      });
-
+      const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
       if (!allowedEmails.includes(userEmail.trim())) {
         await supabase.auth.signOut();
-        throw new Error('Acceso no autorizado - Contacta al administrador');
+        throw new Error('Acceso no autorizado');
       }
 
-      console.log('Login successful - Redirecting to dashboard');
       navigate('/');
     } catch (err: any) {
       setError(err.message);
