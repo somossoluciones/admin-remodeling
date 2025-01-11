@@ -23,7 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Session:', session);
       if (session?.user) {
-        const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
+        const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
         if (!allowedEmails.includes(session.user.email || '')) {
           supabase.auth.signOut();
           navigate('/login');
@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth state changed:', _event, session);
       if (session?.user) {
-        const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
+        const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
         if (!allowedEmails.includes(session.user.email || '')) {
           supabase.auth.signOut();
           navigate('/login');

@@ -32,10 +32,10 @@ const Login = () => {
         throw new Error('No se pudo obtener el correo electrónico');
       }
 
-      const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
+      const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
       if (!allowedEmails.includes(userEmail.trim())) {
         await supabase.auth.signOut();
-        throw new Error('Acceso no autorizado');
+        throw new Error('Acceso no autorizado - Correo no registrado');
       }
 
       navigate('/');
