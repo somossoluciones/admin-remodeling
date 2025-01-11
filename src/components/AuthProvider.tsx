@@ -23,8 +23,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Session:', session);
       if (session?.user) {
-        const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
+        const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
+        console.log('Session check:', {
+          email: session.user.email,
+          allowedEmails: allowedEmails,
+          isAllowed: allowedEmails.includes(session.user.email || '')
+        });
+        
         if (!allowedEmails.includes(session.user.email || '')) {
+          console.log('Unauthorized access attempt - signing out');
           supabase.auth.signOut();
           navigate('/login');
           return;
@@ -41,8 +48,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth state changed:', _event, session);
       if (session?.user) {
-        const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
+        const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
+        console.log('Auth state change:', {
+          email: session.user.email,
+          allowedEmails: allowedEmails,
+          isAllowed: allowedEmails.includes(session.user.email || '')
+        });
+        
         if (!allowedEmails.includes(session.user.email || '')) {
+          console.log('Unauthorized access attempt - signing out');
           supabase.auth.signOut();
           navigate('/login');
           return;
