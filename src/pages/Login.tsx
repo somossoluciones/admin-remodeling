@@ -15,7 +15,7 @@ const Login = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${import.meta.env.VITE_APP_URL}/`,
+          redirectTo: `${window.location.origin}/`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -24,6 +24,7 @@ const Login = () => {
       });
 
       if (error) throw error;
+      navigate('/');
     } catch (err: any) {
       setError(err.message);
     }
@@ -35,7 +36,7 @@ const Login = () => {
     setError(null);
 
     const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
-    
+
     if (!allowedEmails.includes(email)) {
       setError('Acceso no autorizado');
       setLoading(false);

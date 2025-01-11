@@ -21,32 +21,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   React.useEffect(() => {
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Session:', session);
       if (session?.user) {
         const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
         if (!allowedEmails.includes(session.user.email || '')) {
           supabase.auth.signOut();
+          navigate('/login');
           return;
         }
       }
       setUser(session?.user ?? null);
       setLoading(false);
+      if (!session?.user) {
+        navigate('/login');
+      }
     });
 
     // Listen for changes on auth state (sign in, sign out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event, session);
       if (session?.user) {
         const allowedEmails = ['robmarq47@mrqzremodeling.com', 'creandolasoluciones@gmail.com'];
         if (!allowedEmails.includes(session.user.email || '')) {
           supabase.auth.signOut();
+          navigate('/login');
           return;
         }
       }
       setUser(session?.user ?? null);
-      setLoading(false);
-      
+
       if (!session?.user) {
         navigate('/login');
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
