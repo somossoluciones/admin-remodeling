@@ -7,12 +7,29 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencias
 node_modules
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Archivos de construcción
+dist/
+build/
+coverage/
+
+# Archivos de caché
+.cache
+.mf
+.rollup.cache
+tsconfig.tsbuildinfo
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +39,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase
+**/supabase/.branches
+**/supabase/.temp
+**/supabase/.env
+
+# Sistema
+Thumbs.db
+desktop.ini
