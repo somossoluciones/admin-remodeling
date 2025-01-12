@@ -1,7 +1,8 @@
 import React from 'react';
-import { BarChart3, Building2, DollarSign, PlusCircle, TrendingUp, CreditCard, Clock, FileText } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { BarChart3, Building2, DollarSign, PlusCircle, TrendingUp, CreditCard, Clock, FileText, LogOut } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useProperties, useProjects } from '../hooks/useSupabase';
+import { supabase } from '../lib/supabase';
 
 interface PropertyStats {
   count: number;
@@ -33,8 +34,14 @@ const calculateStats = () => {
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { projects, loading: projectsLoading } = useProjects();
   const { properties, loading: propertiesLoading } = useProperties();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
 
   const stats = React.useMemo(() => {
     let totalProjects = 0;
@@ -97,13 +104,22 @@ const Dashboard = () => {
     <div>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Panel de Control</h1>
-        <Link
-          to="/projects/new"
-          className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-        >
-          <PlusCircle className="w-5 h-5 mr-2" />
-          Nuevo Proyecto
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            to="/projects/new"
+            className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            <PlusCircle className="w-5 h-5 mr-2" />
+            Nuevo Proyecto
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+          >
+            <LogOut className="w-5 h-5 mr-2" />
+            Cerrar Sesión
+          </button>
+        </div>
       </div>
       
       {/* Draft Projects Section */}

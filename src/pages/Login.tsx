@@ -11,7 +11,7 @@ const Login = () => {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`,
@@ -21,24 +21,6 @@ const Login = () => {
           },
         },
       });
-
-      if (error) throw error;
-
-      // Verificar el correo después del inicio de sesión
-      const session = await supabase.auth.getSession();
-      const userEmail = session.data.session?.user?.email;
-
-      if (!userEmail) {
-        throw new Error('No se pudo obtener el correo electrónico');
-      }
-
-      const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
-      if (!allowedEmails.includes(userEmail.trim())) {
-        await supabase.auth.signOut();
-        throw new Error('Acceso no autorizado - Correo no registrado');
-      }
-
-      navigate('/');
     } catch (err: any) {
       setError(err.message);
     } finally {

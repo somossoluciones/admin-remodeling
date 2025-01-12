@@ -21,36 +21,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   React.useEffect(() => {
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Session:', session);
+      console.log('Session check:', session?.user?.email);
       if (session?.user) {
         const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
         if (!allowedEmails.includes(session.user.email || '')) {
+          console.log('Email not allowed:', session.user.email);
           supabase.auth.signOut();
           navigate('/login');
           return;
         }
-      }
-      setUser(session?.user ?? null);
-      setLoading(false);
-      if (!session?.user) {
+        console.log('Email allowed, setting user');
+        setUser(session.user);
+        setLoading(false);
+      } else {
+        console.log('No session, redirecting to login');
+        setUser(null);
+        setLoading(false);
         navigate('/login');
       }
     });
 
     // Listen for changes on auth state (sign in, sign out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth state changed:', _event, session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('Auth state changed:', _event, session?.user?.email);
+      
       if (session?.user) {
         const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || [];
         if (!allowedEmails.includes(session.user.email || '')) {
-          supabase.auth.signOut();
+          console.log('Email not allowed:', session.user.email);
+          await supabase.auth.signOut();
           navigate('/login');
           return;
         }
-      }
-      setUser(session?.user ?? null);
-
-      if (!session?.user) {
+        console.log('Email allowed, updating user');
+        setUser(session.user);
+      } else {
+        console.log('No session in state change');
+        setUser(null);
         navigate('/login');
       }
       setLoading(false);
