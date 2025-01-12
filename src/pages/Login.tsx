@@ -14,7 +14,7 @@ const Login = () => {
       await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${import.meta.env.VITE_APP_URL || window.location.origin}/`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
